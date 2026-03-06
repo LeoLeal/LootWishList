@@ -32,7 +32,7 @@ function LootEvents.HandleStartLootRoll(namespace, rollID)
     frame.LootWishListTag = frame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
     local font, size, flags = frame.LootWishListTag:GetFont()
     if font and size then
-      frame.LootWishListTag:SetFont(font, size - 1, flags)
+      frame.LootWishListTag:SetFont(font, size - 3, flags)
     end
   end
   frame.LootWishListTag:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -84, -12)
@@ -96,8 +96,8 @@ function LootEvents.HandleChatLoot(namespace, message, playerNameEvent)
 
   local player = (playerMatch and playerMatch ~= "") and playerMatch or playerNameEvent
   player = player and Ambiguate(player, "short") or nil
-
   local selfName = UnitName("player")
+
   if player and selfName and player == selfName then
     return
   end

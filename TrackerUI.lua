@@ -159,13 +159,129 @@ function TrackerUI.Initialize(namespace)
 
   namespace.trackerFrame = frame
 
+  local function onTrackerHide()
+    if namespace.trackerFrame then
+      namespace.trackerFrame:Hide()
+    end
+  end
+
+  local function onTrackerShow()
+    if namespace.trackerFrame then
+      TrackerUI.Refresh(namespace, (namespace.trackerFrame.groups or {}))
+    end
+  end
+
+  -- Hook ObjectiveTracker_Update for re-anchoring.
   if type(ObjectiveTracker_Update) == "function" then
     hooksecurefunc("ObjectiveTracker_Update", function()
-      if namespace.trackerFrame and namespace.trackerFrame:IsShown() then
-        updateAnchor(namespace.trackerFrame)
+      if namespace.trackerFrame then
+        if TrackerUI.IsTrackerContentVisible() then
+          if namespace.trackerFrame:IsShown() then
+            updateAnchor(namespace.trackerFrame)
+          end
+        else
+          namespace.trackerFrame:Hide()
+        end
       end
     end)
   end
+
+  if ObjectiveTrackerFrame then
+    ObjectiveTrackerFrame:HookScript("OnHide", onTrackerHide)
+    ObjectiveTrackerFrame:HookScript("OnShow", onTrackerShow)
+
+    -- Hook SetCollapsed (TWW 11.x method on ObjectiveTrackerFrame).
+    if type(ObjectiveTrackerFrame.SetCollapsed) == "function" then
+      hooksecurefunc(ObjectiveTrackerFrame, "SetCollapsed", function(_, collapsed)
+        if collapsed then
+          onTrackerHide()
+        else
+          onTrackerShow()
+        end
+      end)
+    end
+
+    -- Hook the header minimize button if present (TWW).
+    local header = ObjectiveTrackerFrame.Header
+    if header then
+      local minBtn = header.MinimizeButton or header.CollapseButton
+      if minBtn and minBtn.HookScript then
+        minBtn:HookScript("OnClick", function()
+          if TrackerUI.IsTrackerContentVisible() then
+            onTrackerShow()
+          else
+            onTrackerHide()
+          end
+        end)
+      end
+    end
+
+    -- Legacy: BlocksFrame hide/show.
+    local blocksFrame = ObjectiveTrackerFrame.BlocksFrame
+    if blocksFrame and blocksFrame.HookScript then
+      blocksFrame:HookScript("OnHide", onTrackerHide)
+      blocksFrame:HookScript("OnShow", onTrackerShow)
+    end
+
+    -- TWW: ContentsFrame hide/show.
+    local contentsFrame = ObjectiveTrackerFrame.ContentsFrame
+    if contentsFrame and contentsFrame.HookScript then
+      contentsFrame:HookScript("OnHide", onTrackerHide)
+      contentsFrame:HookScript("OnShow", onTrackerShow)
+    end
+  end
+
+  -- Legacy global functions.
+  if type(ObjectiveTracker_Collapse) == "function" then
+    hooksecurefunc("ObjectiveTracker_Collapse", onTrackerHide)
+  end
+  if type(ObjectiveTracker_Expand) == "function" then
+    hooksecurefunc("ObjectiveTracker_Expand", onTrackerShow)
+  end
+
+  -- Watcher parented to UIParent so it always runs.
+  local watcher = CreateFrame("Frame", nil, UIParent)
+  watcher:SetSize(0, 0)
+  watcher:SetAlpha(0)
+  watcher:SetScript("OnUpdate", function()
+    local tf = namespace.trackerFrame
+    if not tf or not tf:IsShown() then return end
+    if not TrackerUI.IsTrackerContentVisible() then
+      tf:Hide()
+    end
+  end)
+end
+
+function TrackerUI.IsTrackerContentVisible()
+  if not ObjectiveTrackerFrame then return false end
+
+  -- TWW 11.x: direct collapsed property checks.
+  if ObjectiveTrackerFrame.isCollapsed then return false end
+  if ObjectiveTrackerFrame.collapsed then return false end
+
+  -- TWW 11.x: IsCollapsed method.
+  if type(ObjectiveTrackerFrame.IsCollapsed) == "function" then
+    if ObjectiveTrackerFrame:IsCollapsed() then return false end
+  end
+
+  -- Frame not shown at all.
+  if not ObjectiveTrackerFrame:IsShown() then return false end
+
+  -- Legacy: BlocksFrame hidden.
+  local blocksFrame = ObjectiveTrackerFrame.BlocksFrame
+  if blocksFrame and not blocksFrame:IsShown() then return false end
+
+  -- TWW: ContentsFrame hidden.
+  local contentsFrame = ObjectiveTrackerFrame.ContentsFrame
+  if contentsFrame and not contentsFrame:IsShown() then return false end
+
+  -- Last resort: check if our parent is actually visible on screen.
+  local parent = getTrackerParent()
+  if parent and type(parent.IsVisible) == "function" then
+    if not parent:IsVisible() then return false end
+  end
+
+  return true
 end
 
 function TrackerUI.Refresh(namespace, groups)
@@ -184,6 +300,12 @@ function TrackerUI.Refresh(namespace, groups)
   end
 
   frame.groups = groups
+
+  -- Never show the frame when the parent tracker is collapsed or hidden.
+  if not TrackerUI.IsTrackerContentVisible() then
+    return
+  end
+
   frame:Show()
   frame.header:SetText(namespace.GetText("LOOT_WISHLIST"))
   updateAnchor(frame)
