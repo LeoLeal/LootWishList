@@ -150,3 +150,37 @@ test('tracker row style uses quest-style check atlas and row padding', async () 
     close()
   }
 })
+
+test('item resolver getTooltipRef prefers saved item link over stable identity fallback', async () => {
+  const { module: resolver, close } = await loadLuaModule('ItemResolver.lua')
+
+  try {
+    const link = '|Hitem:19019::::::::70:::::|h[Thunderfury]|h'
+    assert.equal(
+      resolver.getTooltipRef({ itemID: 19019, itemLink: link }),
+      link,
+      'should return the saved item link when present'
+    )
+  } finally {
+    close()
+  }
+})
+
+test('item resolver getTooltipRef falls back to stable item identity when no link is saved', async () => {
+  const { module: resolver, close } = await loadLuaModule('ItemResolver.lua')
+
+  try {
+    assert.equal(
+      resolver.getTooltipRef({ itemID: 19019 }),
+      'item:19019',
+      'should return item:N identity string when no itemLink is stored'
+    )
+    assert.equal(
+      resolver.getTooltipRef({}),
+      null,
+      'should return nil when neither itemLink nor itemID is available'
+    )
+  } finally {
+    close()
+  }
+})

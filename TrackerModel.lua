@@ -46,6 +46,8 @@ function TrackerModel.buildGroups(items, otherLabel)
       showTick = item.isPossessed == true,
       bestLootedItemLevel = item.bestLootedItemLevel,
       groupLabel = label,
+      tooltipRef = item.tooltipRef,
+      displayLink = item.displayLink,
     })
   end
 

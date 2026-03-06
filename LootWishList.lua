@@ -36,7 +36,7 @@ local function getItemLevel(itemLink)
   return nil
 end
 
-local function markPossessedFromLink(lookup, highestLevels, itemLink)
+local function markPossessedFromLink(lookup, highestLevels, bestOwnedLinks, itemLink)
   local itemID = namespace.ItemResolver.getItemIdFromLink(itemLink)
   if not itemID then
     return
@@ -48,6 +48,9 @@ local function markPossessedFromLink(lookup, highestLevels, itemLink)
   local itemLevel = getItemLevel(itemLink)
   if itemLevel and (not highestLevels[key] or itemLevel > highestLevels[key]) then
     highestLevels[key] = itemLevel
+    bestOwnedLinks[key] = itemLink
+  elseif not highestLevels[key] then
+    bestOwnedLinks[key] = bestOwnedLinks[key] or itemLink
   end
 end
 
@@ -149,16 +152,17 @@ end
 function namespace.RefreshPossessionState()
   local possessed = {}
   local highestLevels = {}
+  local bestOwnedLinks = {}
 
   for slot = INVSLOT_FIRST_EQUIPPED or 1, INVSLOT_LAST_EQUIPPED or 19 do
-    markPossessedFromLink(possessed, highestLevels, GetInventoryItemLink("player", slot))
+    markPossessedFromLink(possessed, highestLevels, bestOwnedLinks, GetInventoryItemLink("player", slot))
   end
 
   if C_Container and C_Container.GetContainerNumSlots and C_Container.GetContainerItemLink then
     for bag = BACKPACK_CONTAINER or 0, NUM_BAG_SLOTS or 4 do
       local numSlots = C_Container.GetContainerNumSlots(bag)
       for slot = 1, numSlots do
-        markPossessedFromLink(possessed, highestLevels, C_Container.GetContainerItemLink(bag, slot))
+        markPossessedFromLink(possessed, highestLevels, bestOwnedLinks, C_Container.GetContainerItemLink(bag, slot))
       end
     end
 
@@ -166,7 +170,8 @@ function namespace.RefreshPossessionState()
       if BANK_CONTAINER then
         local numBankSlots = C_Container.GetContainerNumSlots(BANK_CONTAINER) or 0
         for slot = 1, numBankSlots do
-          markPossessedFromLink(possessed, highestLevels, C_Container.GetContainerItemLink(BANK_CONTAINER, slot))
+          markPossessedFromLink(possessed, highestLevels, bestOwnedLinks,
+            C_Container.GetContainerItemLink(BANK_CONTAINER, slot))
         end
       end
 
@@ -175,19 +180,21 @@ function namespace.RefreshPossessionState()
       for bag = firstBankBag, lastBankBag do
         local numSlots = C_Container.GetContainerNumSlots(bag) or 0
         for slot = 1, numSlots do
-          markPossessedFromLink(possessed, highestLevels, C_Container.GetContainerItemLink(bag, slot))
+          markPossessedFromLink(possessed, highestLevels, bestOwnedLinks, C_Container.GetContainerItemLink(bag, slot))
         end
       end
     end
   end
 
   namespace.state.possessed = possessed
+  namespace.state.bestOwnedLinks = bestOwnedLinks
 
   local trackedItems = namespace.WishlistStore.getTrackedItems(getCurrentDb(), getCharacterKey())
   for _, item in ipairs(trackedItems) do
     local key = namespace.ItemResolver.getWishlistKey({ itemID = item.itemID })
     if highestLevels[key] then
-      namespace.WishlistStore.updateBestLootedItemLevel(getCurrentDb(), getCharacterKey(), item.itemID, highestLevels[key])
+      namespace.WishlistStore.updateBestLootedItemLevel(getCurrentDb(), getCharacterKey(), item.itemID,
+        highestLevels[key])
     end
   end
 end
@@ -195,6 +202,7 @@ end
 function namespace.BuildTrackerGroups()
   local trackedItems = namespace.WishlistStore.getTrackedItems(getCurrentDb(), getCharacterKey())
   local renderItems = {}
+  local bestOwnedLinks = namespace.state.bestOwnedLinks or {}
 
   for _, item in ipairs(trackedItems) do
     local key = namespace.ItemResolver.getWishlistKey({ itemID = item.itemID })
@@ -203,6 +211,12 @@ function namespace.BuildTrackerGroups()
       instanceName = item.sourceLabel,
       currentInstanceName = namespace.GetCurrentSourceLabel(nil),
     })
+    local bestOwnedLink = bestOwnedLinks[key]
+    local tooltipRef = namespace.ItemResolver.getTooltipRef({
+      itemLink = item.itemLink,
+      itemID = item.itemID,
+    })
+    local displayLink = bestOwnedLink or item.itemLink
 
     table.insert(renderItems, {
       itemID = item.itemID,
@@ -210,6 +224,8 @@ function namespace.BuildTrackerGroups()
       groupLabel = groupLabel,
       isPossessed = namespace.state.possessed[key] == true,
       bestLootedItemLevel = item.bestLootedItemLevel,
+      tooltipRef = tooltipRef,
+      displayLink = displayLink,
     })
   end
 

@@ -198,6 +198,8 @@ function TrackerUI.Refresh(namespace, groups)
     for index = 1, #(frame.rows or {}) do
       frame.rows[index]:Hide()
       frame.rows[index]:SetScript("OnMouseUp", nil)
+      frame.rows[index]:SetScript("OnEnter", nil)
+      frame.rows[index]:SetScript("OnLeave", nil)
       frame.rows[index].itemKey = nil
     end
 
@@ -238,11 +240,42 @@ function TrackerUI.Refresh(namespace, groups)
       end
       itemRow.text:SetFontObject(GameFontHighlight)
       itemRow.text:SetText(item.displayText)
+      if item.displayLink and type(GetItemInfo) == "function" then
+        local _, _, itemQuality = GetItemInfo(item.displayLink)
+        if itemQuality and ITEM_QUALITY_COLORS and ITEM_QUALITY_COLORS[itemQuality] then
+          local qc = ITEM_QUALITY_COLORS[itemQuality]
+          itemRow.text:SetTextColor(qc.r, qc.g, qc.b)
+        else
+          itemRow.text:SetTextColor(GameFontHighlight:GetTextColor())
+        end
+      else
+        itemRow.text:SetTextColor(GameFontHighlight:GetTextColor())
+      end
       itemRow.itemKey = item.itemID
       itemRow:Show()
       itemRow:SetScript("OnMouseUp", function(_, button)
         if button == "LeftButton" and IsShiftKeyDown() then
           namespace.RemoveTrackedItem(item.itemID)
+        end
+      end)
+      local tooltipRef = item.displayLink or item.tooltipRef
+      local itemID = item.itemID
+      itemRow:SetScript("OnEnter", function(self)
+        if GameTooltip then
+          GameTooltip:SetOwner(self, "ANCHOR_CURSOR")
+          if type(tooltipRef) == "string" and tooltipRef:find("item:") then
+            GameTooltip:SetHyperlink(tooltipRef)
+          elseif itemID then
+            if GameTooltip.SetItemByID then
+              GameTooltip:SetItemByID(itemID)
+            end
+          end
+          GameTooltip:Show()
+        end
+      end)
+      itemRow:SetScript("OnLeave", function()
+        if GameTooltip then
+          GameTooltip:Hide()
         end
       end)
 
@@ -267,6 +300,8 @@ function TrackerUI.Refresh(namespace, groups)
   for index = rowIndex, #(frame.rows or {}) do
     frame.rows[index]:Hide()
     frame.rows[index]:SetScript("OnMouseUp", nil)
+    frame.rows[index]:SetScript("OnEnter", nil)
+    frame.rows[index]:SetScript("OnLeave", nil)
     frame.rows[index].itemKey = nil
   end
 

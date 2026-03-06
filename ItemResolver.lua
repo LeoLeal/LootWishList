@@ -46,6 +46,23 @@ function ItemResolver.normalizeItemData(itemData)
   }
 end
 
+function ItemResolver.getTooltipRef(item)
+  if item == nil then
+    return nil
+  end
+
+  if type(item.itemLink) == "string" and item.itemLink ~= "" then
+    return item.itemLink
+  end
+
+  local itemId = item.itemID or item.itemId or item.id
+  if itemId ~= nil then
+    return "item:" .. tostring(itemId)
+  end
+
+  return nil
+end
+
 local _, namespace = ...
 if type(namespace) == "table" then
   namespace.ItemResolver = ItemResolver
