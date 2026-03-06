@@ -123,8 +123,8 @@ function TrackerUI.Initialize(namespace)
   frame:SetHeight(1)
 
   frame.headerFrame = CreateFrame("Frame", nil, frame, "ObjectiveTrackerModuleHeaderTemplate")
-  frame.headerFrame:SetPoint("TOPLEFT", 0, 0)
-  frame.headerFrame:SetPoint("TOPRIGHT", 0, 0)
+  frame.headerFrame:SetPoint("TOPLEFT", 0, 10)
+  frame.headerFrame:SetPoint("TOPRIGHT", 0, 10)
   frame.headerFrame:SetHeight(26)
 
   if frame.headerFrame.Glow and frame.headerFrame.Text then
@@ -207,7 +207,7 @@ function TrackerUI.Refresh(namespace, groups)
     return
   end
 
-  yOffset = yOffset - 6
+  yOffset = yOffset + 4
 
   for _, group in ipairs(groups) do
     local headerRow = ensureRow(namespace, frame, rowIndex)
