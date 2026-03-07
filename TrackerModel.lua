@@ -17,13 +17,11 @@ local function compareGroupLabels(otherLabel, left, right)
 end
 
 local function buildDisplayText(item)
-  local prefix = item.isPossessed == true and "" or "- "
-
   if item.bestLootedItemLevel ~= nil then
-    return string.format("%s%s (%s)", prefix, item.itemName, tostring(item.bestLootedItemLevel))
+    return string.format("%s (%s)", item.itemName, tostring(item.bestLootedItemLevel))
   end
 
-  return prefix .. item.itemName
+  return item.itemName
 end
 
 function TrackerModel.buildGroups(items, otherLabel)
